@@ -82,6 +82,15 @@ typedef void(^ZegoAudioRoomBlock)(int errorCode);
 /// \brief Engine停止回调
 - (void)setAVEngineDelegate:(id<ZegoAVEngineDelegate>)engineDelegate;
 
+/// \brief 设置配置信息
+/// \param config 配置信息
+/// \note  必须在init sdk前调用
++ (void)setConfig:(NSString *)config;
+
+/// \brief 设置用户进入/退出房间是否通知其他用户
+/// \note 默认不通知
+- (void)setUserStateUpdate:(bool)userStateUpdate;
+
 @end
 
 @protocol ZegoAudioRoomDelegate <NSObject>
@@ -94,7 +103,7 @@ typedef void(^ZegoAudioRoomBlock)(int errorCode);
 - (void)onKickOut:(int)reason roomID:(NSString *)roomID;
 
 /// \brief 与 server 断开
-/// \param[in] errorCode 错误码，0 位无错误
+/// \param[in] errorCode 错误码，0 为无错误
 /// \param[in] roomID 房间 ID
 - (void)onDisconnect:(int)errorCode roomID:(NSString *)roomID;
 
@@ -102,6 +111,15 @@ typedef void(^ZegoAudioRoomBlock)(int errorCode);
 /// \param[in] type 增加/删除流
 /// \param[in] stream 流信息
 - (void)onStreamUpdated:(ZegoAudioStreamType)type stream:(ZegoAudioStream*)stream;
+
+/**
+ 房间成员更新回调
+ 
+ @param userList 成员更新列表
+ @param type  更新类型(增量，全量)
+ @attention 当房间成员变化（例如用户进入、退出房间）时，会触发此通知
+ */
+- (void)onUserUpdate:(NSArray<ZegoUserState *> *)userList updateType:(ZegoUserUpdateType)type;
 
 @end
 

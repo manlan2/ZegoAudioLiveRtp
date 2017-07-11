@@ -53,6 +53,8 @@
     
     self.publishButton.enabled = NO;
     
+    [[ZegoAudioLive api] setUserStateUpdate:YES];
+    
     [self setupLiveKit];
     
     self.mutedButton.enabled = NO;
@@ -250,7 +252,7 @@
     else
         cell.textLabel.textColor = [UIColor blackColor];
     
-    NSAttributedString *titleAttributeString = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"Stream %2lu: ", indexPath.row + 1] attributes:@{NSForegroundColorAttributeName: [UIColor blackColor]}];
+    NSAttributedString *titleAttributeString = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"Stream %2d: ", indexPath.row + 1] attributes:@{NSForegroundColorAttributeName: [UIColor blackColor]}];
     
     NSMutableAttributedString *contentAttributeString = [[NSMutableAttributedString alloc] initWithString:audioStream.streamID];
     if ([audioStream.userID isEqualToString:[ZegoSettings sharedInstance].userID])
@@ -362,6 +364,22 @@
     }
     
     [self.tableView reloadData];
+}
+
+- (void)onUserUpdate:(NSArray<ZegoUserState *> *)userList updateType:(ZegoUserUpdateType)type
+{
+    if (type == ZEGO_UPDATE_TOTAL)
+        [self addLogString:@"用户列表已全量更新"];
+    else if (type == ZEGO_UPDATE_INCREASE)
+        [self addLogString:@"用户列表增量更新"];
+    
+    for (ZegoUserState *user in userList)
+    {
+        if (user.updateFlag == ZEGO_USER_ADD)
+            [self addLogString:[NSString stringWithFormat:@"%@ 用户进入房间", user.userID]];
+        else if (user.updateFlag == ZEGO_USER_DELETE)
+            [self addLogString:[NSString stringWithFormat:@"%@ 用户离开房间", user.userID]];
+    }
 }
 
 #pragma mark - Log

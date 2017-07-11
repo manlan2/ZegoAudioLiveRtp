@@ -52,10 +52,44 @@
 /// \return 当前采集音量大小
 - (float)getCaptureSoundLevel;
 
-/// \brief 设置音频前处理函数
-/// \param prep 前处理函数指针
-/// \note 必须在InitSDK前调用，并且不能置空
-+ (void)setAudioPrep:(void(*)(const short* inData, int inSamples, int sampleRate, short *outData))prep;
+/// 是否开启离散音频包发送
+/// \param enable true 开启，此时关闭麦克风后，不会发送静音包；false 关闭，此时关闭麦克风后会发送静音包
+/// \note 默认状态下，关闭麦克风后会发送静音包
+/// \note 在推流前调用，只有纯 UDP 方案才可以调用此接口
+- (void)enableDTX:(bool)enable;
+
+/**
+ 设置音频码率
+ 
+ @param bitrate 码率
+ @return true 成功 false 失败
+ */
+- (bool)setAudioBitrate:(int)bitrate;
+
+/**
+ 设置延迟模式
+ 
+ @param mode 延迟模式，默认 ZEGOAPI_LATENCY_MODE_NORMAL
+ @note 在推流前调用
+ */
+- (void)setLatencyMode:(ZegoAPILatencyMode)mode;
+
+/**
+ 音频采集自动增益开关
+ 
+ @param enable 是否开启
+ @return true 成功，false 失败
+ @note 默认关闭
+ */
+- (bool)enableAGC:(bool)enable;
+
+/**
+ 回声消除开关
+ 
+ @param bEnable true 打开 false 关闭
+ @return true 成功 false 失败
+ */
+- (bool)enableAEC:(bool)enable;
 
 @end
 
