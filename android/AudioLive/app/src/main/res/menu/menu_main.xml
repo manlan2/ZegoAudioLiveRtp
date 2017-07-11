@@ -6,4 +6,10 @@
         android:orderInCategory="100"
         android:title="@string/zg_menu_main_show_events"
         app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/action_close"
+        android:orderInCategory="101"
+        android:title="@string/zg_logout_room"
+        app:showAsAction="always" />
 </menu>

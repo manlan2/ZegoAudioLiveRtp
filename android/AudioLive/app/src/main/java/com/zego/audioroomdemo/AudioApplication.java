@@ -18,8 +18,8 @@ import java.util.HashMap;
 
 public class AudioApplication extends Application {
 
-    private SharedPreferences pref;
     private ArrayList<String> logSet;
+    private ZegoAudioRoom mZegoAudioRoom;
 
     static public AudioApplication sApplication;
 
@@ -59,19 +59,26 @@ public class AudioApplication extends Application {
 
         CrashReport.initCrashReport(getApplicationContext(), "9a7c25a3f2", false);
         CrashReport.setUserId(userId);
+
+        initSDK();
     }
 
     private void initData() {
-        pref = getSharedPreferences("app_data", MODE_PRIVATE);
         logSet = new ArrayList<>();
     }
 
+    private void initSDK() {
+        ZegoAudioRoom.enableAudioPrep(PrefUtils.isEnableAudioPrepare());
+
+        mZegoAudioRoom = new ZegoAudioRoom();
+        mZegoAudioRoom.setManualPublish(PrefUtils.isManualPublish());
+    }
+
     private String getUserId() {
-        String userId = pref.getString("userId", null);
+        String userId = PrefUtils.getUserId();
         if (TextUtils.isEmpty(userId)) {
             userId = System.currentTimeMillis() / 1000 + "";
-            pref.edit().putString("userId", userId);
-            pref.edit().apply();
+            PrefUtils.setUserId(userId);
         }
         return userId;
     }
@@ -101,5 +108,18 @@ public class AudioApplication extends Application {
         if (mLogObservers.contains(observer)) {
             mLogObservers.remove(observer);
         }
+    }
+
+    private boolean useTestEnv = false;
+    public boolean isUseTestEnv() {
+        return useTestEnv;
+    }
+
+    public void setUseTestEnv(boolean useTestEnv) {
+        this.useTestEnv = useTestEnv;
+    }
+
+    public ZegoAudioRoom getAudioRoomClient() {
+        return mZegoAudioRoom;
     }
 }

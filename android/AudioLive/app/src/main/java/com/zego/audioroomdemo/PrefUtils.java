@@ -31,13 +31,13 @@ public class PrefUtils {
         return sInst.mPref.getString(KUserId, null);
     }
 
-    static public void setAudioPrepare(boolean enablePrepare) {
+    static public void enableAudioPrepare(boolean enablePrepare) {
         SharedPreferences.Editor editor = sInst.mPref.edit();
         editor.putBoolean(KAudio_Prepare, enablePrepare);
         editor.apply();
     }
 
-    static public boolean getAudioPrepare() {
+    static public boolean isEnableAudioPrepare() {
         return sInst.mPref.getBoolean(KAudio_Prepare, false);
     }
 
@@ -47,7 +47,7 @@ public class PrefUtils {
         editor.apply();
     }
 
-    static public boolean getManualPublish() {
+    static public boolean isManualPublish() {
         return sInst.mPref.getBoolean(KManual_Publish, false);
     }
 

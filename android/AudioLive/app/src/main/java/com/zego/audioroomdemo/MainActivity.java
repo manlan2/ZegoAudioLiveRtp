@@ -3,7 +3,6 @@ package com.zego.audioroomdemo;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.support.annotation.NonNull;
@@ -11,42 +10,16 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import com.zego.zegoaudioroom.ZegoAudioAVEngineDelegate;
-import com.zego.zegoaudioroom.ZegoAudioDeviceEventDelegate;
-import com.zego.zegoaudioroom.ZegoAudioLiveEvent;
-import com.zego.zegoaudioroom.ZegoAudioLiveEventDelegate;
-import com.zego.zegoaudioroom.ZegoAudioLivePlayerDelegate;
-import com.zego.zegoaudioroom.ZegoAudioLivePublisherDelegate;
-import com.zego.zegoaudioroom.ZegoAudioLiveRecordDelegate;
-import com.zego.zegoaudioroom.ZegoAudioPrepareDelegate;
 import com.zego.zegoaudioroom.ZegoAudioRoom;
-import com.zego.zegoaudioroom.ZegoAudioRoomDelegate;
-import com.zego.zegoaudioroom.ZegoAudioStream;
-import com.zego.zegoaudioroom.ZegoAudioStreamType;
-import com.zego.zegoaudioroom.ZegoAuxData;
-import com.zego.zegoaudioroom.ZegoLoginAudioRoomCallback;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.ref.WeakReference;
-import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -62,40 +35,8 @@ public class MainActivity extends AppCompatActivity {
     @Bind(R.id.btn_login_logout)
     public Button btnLoginOrLogout;
 
-    @Bind(R.id.btn_communicate_action)
-    public Button btnCommunicate;
-
-    @Bind(R.id.stream_list)
-    public ListView ctrlStreamList;
-
-    @Bind(R.id.empty_data_tip)
-    public TextView emptyView;
-
-    @Bind(R.id.btn_aux)
-    public Button btnAux;
-
-    @Bind(R.id.btn_mute)
-    public Button btnMute;
-
-    @Bind(R.id.btn_recorder)
-    public Button btnRecorder;
-
     @Bind(R.id.toolbar)
     public android.support.v7.widget.Toolbar toolBar;
-
-    private ZegoAudioRoom zegoAudioRoom;
-    private StreamAdapter streamAdapter;
-
-    private InputStream backgroundMusicStream;
-
-    private boolean hasLogin = false;
-    private boolean enableAux = false;
-    private boolean enableMute = false;
-    private boolean enableRecorder = false;
-
-    /** 是否已经推流 */
-    private boolean hasPublish = false;
-    private String publishStreamId = null;
 
     private byte[] signData_rtmp = new byte[] {
             (byte) 0x91, (byte) 0x93, (byte) 0xcc, (byte) 0x66, (byte) 0x2a, (byte) 0x1c, (byte) 0x0e, (byte) 0xc1,
@@ -111,6 +52,10 @@ public class MainActivity extends AppCompatActivity {
             (byte)0xe0, (byte)0xc8, (byte)0x99, (byte)0xae, (byte)0x82, (byte)0xc0, (byte)0xf6, (byte)0xf8
     };
 
+    private long currentAppId = -1;
+    private String currentStrSignKey = null;
+    private byte[] currentSignKey = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -118,54 +63,35 @@ public class MainActivity extends AppCompatActivity {
 
         ButterKnife.bind(this);
 
-        if (PrefUtils.getManualPublish()) {
-            btnLoginOrLogout.setVisibility(View.VISIBLE);
-            btnCommunicate.setEnabled(false);
-        } else {
-            btnLoginOrLogout.setVisibility(View.GONE);
-            btnCommunicate.setEnabled(true);
-        }
-
         setSupportActionBar(toolBar);
         toolBar.setNavigationOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (hasLogin) {
-                    Toast.makeText(MainActivity.this, R.string.zg_tip_not_allow_setting_when_login, Toast.LENGTH_LONG).show();
-                } else {
-                    Intent settingsIntent = new Intent(MainActivity.this, SettingsActivity.class);
-                    settingsIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                    startActivityForResult(settingsIntent, 101);
+
+                Intent settingsIntent = new Intent(MainActivity.this, SettingsActivity.class);
+                settingsIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                if (currentAppId > 0 && !TextUtils.isEmpty(currentStrSignKey)) {
+                    settingsIntent.putExtra("appId", currentAppId);
+                    settingsIntent.putExtra("rawKey", currentStrSignKey);
                 }
+                startActivityForResult(settingsIntent, 101);
             }
         });
 
-        ZegoAudioRoom.enableAudioPrep(PrefUtils.getAudioPrepare());
-
-        zegoAudioRoom = new ZegoAudioRoom();
-        zegoAudioRoom.setManualPublish(PrefUtils.getManualPublish());
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, REQUEST_CODE_PERMISSION);
-            } else {
-                initZegoSDK(BuildConfig.APP_ID, requireSignData());
-            }
+        btnLoginOrLogout.setEnabled(false);
+        if (PrefUtils.isManualPublish()) {
+            btnLoginOrLogout.setText(R.string.zg_login_room);
         } else {
-            initZegoSDK(BuildConfig.APP_ID, requireSignData());
+            btnLoginOrLogout.setText(R.string.zg_start_communicate);
         }
 
-        streamAdapter = new StreamAdapter();
-        ctrlStreamList.setEmptyView(emptyView);
-        ctrlStreamList.setAdapter(streamAdapter);
+        currentAppId = BuildConfig.APP_ID;
+        currentSignKey = requireSignData();
     }
 
     @Override
     protected void onDestroy() {
-        if (hasLogin) {
-            logout();
-        }
-
+        ZegoAudioRoom zegoAudioRoom = ((AudioApplication)getApplication()).getAudioRoomClient();
         zegoAudioRoom.unInit();
 
         super.onDestroy();
@@ -191,132 +117,58 @@ public class MainActivity extends AppCompatActivity {
                 i ++;
             }
             if (allPermissionAllowed) {
-                initZegoSDK(BuildConfig.APP_ID, requireSignData());
+                startSessionActivity();
             }
-        }
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_show_logs:
-                startActivity(new Intent(MainActivity.this, LogsActivity.class));
-                return true;
-
-            default:
-                return super.onOptionsItemSelected(item);
         }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == 101) {
+            ZegoAudioRoom zegoAudioRoom = ((AudioApplication)getApplication()).getAudioRoomClient();
             if (resultCode == 1) {
                 ZGLog.d("on SettingsActivity Result, reInit SDK");
-                zegoAudioRoom.unInit();
-
-                ZegoAudioRoom.enableAudioPrep(PrefUtils.getAudioPrepare());
-                zegoAudioRoom.setManualPublish(PrefUtils.getManualPublish());
                 if (data == null) {
-                    initZegoSDK(BuildConfig.APP_ID, requireSignData());
+                    reInitZegoSDK(BuildConfig.APP_ID, requireSignData());
                 } else {
-                    initZegoSDK(data.getLongExtra("appId", 1), data.getByteArrayExtra("signKey"));
+                    currentStrSignKey = data.getStringExtra("rawKey");
+                    reInitZegoSDK(data.getLongExtra("appId", 1), data.getByteArrayExtra("signKey"));
                 }
             } else {
                 ZGLog.d("on SettingsActivity Result: %d", resultCode);
-                zegoAudioRoom.setManualPublish(PrefUtils.getManualPublish());
+                zegoAudioRoom.setManualPublish(PrefUtils.isManualPublish());
             }
 
-            if (PrefUtils.getManualPublish()) {
-                btnLoginOrLogout.setEnabled(true);
-                btnLoginOrLogout.setVisibility(View.VISIBLE);
-                btnCommunicate.setEnabled(false);
+            if (PrefUtils.isManualPublish()) {
+                btnLoginOrLogout.setText(R.string.zg_login_room);
             } else {
-                btnLoginOrLogout.setVisibility(View.GONE);
-                btnCommunicate.setEnabled(true);
+                btnLoginOrLogout.setText(R.string.zg_start_communicate);
             }
         } else {
             super.onActivityResult(requestCode, resultCode, data);
         }
     }
 
-    @OnClick({R.id.btn_login_logout, R.id.btn_communicate_action, R.id.btn_aux, R.id.btn_mute, R.id.btn_recorder})
-    public void onViewClicked(View view) {
-        switch (view.getId()) {
-            case R.id.btn_login_logout:
-                handleLoginOrLogout();
-                break;
-
-            case R.id.btn_communicate_action:
-                handleCommunicate();
-                break;
-
-            case R.id.btn_aux:
-                handleAuxState();
-                break;
-
-            case R.id.btn_mute:
-                handleMuteState();
-                break;
-
-            case R.id.btn_recorder:
-                handleRecorderState();
-                break;
-        }
-    }
-
-
-    private void handleLoginOrLogout() {
-        if (hasLogin) {
-            logout();
-        } else {    // 在通话中，需要退出通话
-            login();
-        }
-    }
-
-    private void handleCommunicate() {
-        if (PrefUtils.getManualPublish()) {
-            if (hasPublish) {
-                zegoAudioRoom.stopPublish();
-                btnCommunicate.setText(R.string.zg_start_communicate);
-                streamAdapter.removeItem(publishStreamId);
-                publishStreamId = null;
-                hasPublish = false;
+    @OnClick(R.id.btn_login_logout)
+    public void onLoginClick(View view) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, REQUEST_CODE_PERMISSION);
             } else {
-                btnCommunicate.setEnabled(false);
-                zegoAudioRoom.startPublish();
+                startSessionActivity();
             }
         } else {
-            handleLoginOrLogout();
+            startSessionActivity();
         }
     }
 
-    private void handleAuxState() {
-        enableAux = !enableAux;
-        zegoAudioRoom.enableAux(enableAux);
-
-        btnAux.setText(enableAux ? R.string.zg_btn_text_aux_off : R.string.zg_btn_text_aux);
-    }
-
-    private void handleMuteState() {
-        enableMute = !enableMute;
-        zegoAudioRoom.enableSpeaker(!enableMute);
-
-        btnMute.setText(enableMute ? R.string.zg_btn_text_mute_off : R.string.zg_btn_text_mute);
-    }
-
-    private void handleRecorderState() {
-        enableRecorder = !enableRecorder;
-        int mask = enableRecorder ? ZegoAudioRoom.AudioRecordMask.Mix : ZegoAudioRoom.AudioRecordMask.NoRecord;
-        zegoAudioRoom.enableSelectedAudioRecord(mask, 44100);
-
-        btnRecorder.setText(enableRecorder ? R.string.zg_btn_text_record_off : R.string.zg_btn_text_record_on);
+    @butterknife.OnTextChanged(R.id.room_name)
+    public void onRoomInfoChanged(CharSequence text, int start, int before, int count) {
+        if (TextUtils.isEmpty(text)) {
+            btnLoginOrLogout.setEnabled(false);
+        } else {
+            btnLoginOrLogout.setEnabled(true);
+        }
     }
 
     private byte[] requireSignData() {
@@ -329,245 +181,37 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void initZegoSDK(long appKey, byte[] signKey) {
-        zegoAudioRoom.initWithAppId(appKey, signKey, this);
+    private void reInitZegoSDK(final long appKey, final byte[] signKey) {
+        currentAppId = appKey;
+        currentSignKey = signKey;
 
-        zegoAudioRoom.setAudioRoomDelegate(new ZegoAudioRoomDelegate() {
+        new Thread(new Runnable() {
             @Override
-            public void onKickOut(int i, String s) {
-                ZGLog.d("onKickOut: %d-%s", i, s);
-            }
+            public void run() {
+                ZegoAudioRoom zegoAudioRoom = ((AudioApplication)getApplication()).getAudioRoomClient();
+                ZegoAudioRoom.setUseTestEnv(false);
+                ZegoAudioRoom.enableAudioPrep(false);
+                zegoAudioRoom.unInit();
 
-            @Override
-            public void onDisconnect(int i, String s) {
-                ZGLog.d("onDisconnect: %d-%s", i, s);
+                String userId = PrefUtils.getUserId();
+                String userName =  "ZG-A-" + userId;
+                ZegoAudioRoom.setUser(userId, userName);
+                ZegoAudioRoom.setUseTestEnv(AudioApplication.sApplication.isUseTestEnv());
+                ZegoAudioRoom.enableAudioPrep(PrefUtils.isEnableAudioPrepare());
+                zegoAudioRoom.setManualPublish(PrefUtils.isManualPublish());
             }
-
-            @Override
-            public void onStreamUpdate(ZegoAudioStreamType zegoAudioStreamType, ZegoAudioStream zegoAudioStream) {
-                ZGLog.d("onStreamUpdate, type: %s, streamId: %s", zegoAudioStreamType, zegoAudioStream.getStreamId());
-                switch (zegoAudioStreamType) {
-                    case ZEGO_AUDIO_STREAM_ADD:
-                        streamAdapter.insertItem(zegoAudioStream.getStreamId());
-                        break;
-                    case ZEGO_AUDIO_STREAM_DELETE:
-                        streamAdapter.removeItem(zegoAudioStream.getStreamId());
-                        break;
-                    default: break;
-                }
-            }
-        });
-        zegoAudioRoom.setAudioPublisherDelegate(new ZegoAudioLivePublisherDelegate() {
-            @Override
-            public void onPublishStateUpdate(int stateCode, String streamId, HashMap<String, Object> info) {
-                ZGLog.d("onPublishStateUpdate, stateCode: %d, streamId: %s, info: %s", stateCode, streamId, info);
-
-                btnCommunicate.setEnabled(true);
-
-                if (stateCode == 0) {
-                    hasPublish = true;
-                    publishStreamId = streamId;
-                    streamAdapter.insertItem(streamId);
-
-                    btnCommunicate.setText(R.string.zg_stop_communicate);
-                } else {
-                    btnCommunicate.setText(R.string.zg_start_communicate);
-                }
-            }
-
-            @Override
-            public ZegoAuxData onAuxCallback(int dataLen) {
-                ZGLog.d("onAuxCallback, dataLen: %d", dataLen);
-                if (dataLen <= 0) return null;
-
-                ZegoAuxData auxData = new ZegoAuxData();
-                auxData.dataBuf = new byte[dataLen];
-
-                try {
-                    if (backgroundMusicStream == null) {
-                        AssetManager am = getAssets();
-                        backgroundMusicStream = am.open("a.pcm");
-                    }
-
-                    int readLength = backgroundMusicStream.read(auxData.dataBuf);
-                    if (readLength <= 0) {
-                        backgroundMusicStream.close();
-                        backgroundMusicStream = null;
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                auxData.sampleRate = 44100;
-                auxData.channelCount = 2;
-                return auxData;
-            }
-        });
-        zegoAudioRoom.setAudioPlayerDelegate(new ZegoAudioLivePlayerDelegate() {
-            @Override
-            public void onPlayStateUpdate(int stateCode, ZegoAudioStream zegoAudioStream) {
-                ZGLog.d("onPlayStateUpdate, stateCode: %d, streamId: %s", stateCode, zegoAudioStream.getStreamId());
-            }
-        });
-        zegoAudioRoom.setAudioLiveEventDelegate(new ZegoAudioLiveEventDelegate() {
-            @Override
-            public void onAudioLiveEvent(ZegoAudioLiveEvent zegoAudioLiveEvent, HashMap<String, String> info) {
-                ZGLog.d("onAudioLiveEvent, event: %s, info: %s", zegoAudioLiveEvent, info);
-            }
-        });
-        zegoAudioRoom.setAudioRecordDelegate(new ZegoAudioLiveRecordDelegate() {
-            @Override
-            public void onAudioRecord(byte[] audioData, int sampleRate, int numberOfChannels, int bitDepth, int type) {
-                ZGLog.d("onAudioRecord, sampleRate: %d, numberOfChannels: %d, bitDepth: %d, type: %d", sampleRate, numberOfChannels, bitDepth, type);
-            }
-        });
-        zegoAudioRoom.setAudioDeviceEventDelegate(new ZegoAudioDeviceEventDelegate() {
-            @Override
-            public void onAudioDevice(String deviceName, int errorCode) {
-                ZGLog.d("onAudioDevice, deviceName: %s, errorCode: %d", deviceName, errorCode);
-            }
-        });
-        zegoAudioRoom.setAudioPrepareDelegate(new ZegoAudioPrepareDelegate() {
-            @Override
-            public void onAudioPrepared(ByteBuffer inData, int sampleCount, int bitDepth, int sampleRate, ByteBuffer outData) {
-                ZGLog.d("onAudioPrepared, inData is null? %s, sampleCount: %d, bitDepth: %d, sampleRate: %d",
-                        inData == null, sampleCount, bitDepth, sampleRate);
-                if (inData != null && outData != null) {
-                    inData.position(0);
-                    outData.position(0);
-                    // outData的长度固定为sampleCount * bitDepth
-                    // 不可更改
-                    outData.limit(sampleCount * bitDepth);
-                    // 将处理后的数据返回sdk
-                    outData.put(inData);
-                }
-            }
-        });
-        zegoAudioRoom.setAudioAVEngineDelegate(new ZegoAudioAVEngineDelegate() {
-            @Override
-            public void onAVEngineStop() {
-                ZGLog.d("onAVEngineStop");
-            }
-        });
+        }).start();
     }
 
-    private void login() {
-        btnLoginOrLogout.setEnabled(false);
-        ctrlRoomName.setEnabled(false);
-
-        String roomId = ctrlRoomName.getText().toString().trim();
-        if (TextUtils.isEmpty(roomId)) {
-            roomId = "zego_audio_live_demo";
-        }
-
-        boolean success = zegoAudioRoom.loginRoom(roomId, new ZegoLoginAudioRoomCallback() {
-            @Override
-            public void onLoginCompletion(int state) {
-                ZGLog.d("onLoginCompletion: 0x%1$x", state);
-
-                if (state == 0) {
-                    hasLogin = true;
-
-                    btnAux.setEnabled(true);
-                    btnMute.setEnabled(true);
-                    btnRecorder.setEnabled(true);
-
-                    if (PrefUtils.getManualPublish()) {
-                        btnLoginOrLogout.setEnabled(true);
-                        btnLoginOrLogout.setText(R.string.zg_logout_room);
-
-                        btnCommunicate.setEnabled(true);
-                    }
-                } else {
-                    ctrlRoomName.setEnabled(true);
-
-                    btnLoginOrLogout.setText(R.string.zg_login_room);
-                    btnLoginOrLogout.setEnabled(true);
-
-                    Toast.makeText(MainActivity.this, String.format("Login Error: 0x%1$x", state), Toast.LENGTH_LONG).show();
-                }
-            }
-        });
-        ZGLog.d("login: %s", success);
+    private void startSessionActivity() {
+        Intent startIntent = new Intent(MainActivity.this, SessionActivity.class);
+        startIntent.putExtra("appId", currentAppId);
+        startIntent.putExtra("signKey", currentSignKey);
+        startIntent.putExtra("roomId", ctrlRoomName.getText().toString().trim());
+        startActivity(startIntent);
     }
 
-    private void logout() {
-        boolean success = zegoAudioRoom.logoutRoom();
-        streamAdapter.clear();
-        hasLogin = false;
-        hasPublish = false;
-
-        btnAux.setEnabled(false);
-        btnMute.setEnabled(false);
-        btnRecorder.setEnabled(false);
-
-        ctrlRoomName.setEnabled(true);
-
-        btnLoginOrLogout.setText(R.string.zg_login_room);
-        btnCommunicate.setText(R.string.zg_start_communicate);
-        if (PrefUtils.getManualPublish()) {
-            btnCommunicate.setEnabled(false);
-        }
-
-        ZGLog.d("logout: %s", success);
-    }
-
-    private class StreamAdapter extends BaseAdapter {
-        private List<String> streamSet;
-        private LayoutInflater inflater;
-
-        public StreamAdapter() {
-            inflater = getLayoutInflater();
-            streamSet = new ArrayList<>();
-        }
-
-        @Override
-        public int getCount() {
-            return streamSet.size();
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return streamSet.get(position);
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            if (convertView == null) {
-                convertView = inflater.inflate(R.layout.widget_list_item, null, false);
-            }
-
-            String content = String.format("Stream %d: %s", position, getItem(position));
-            ((TextView)convertView).setText(content);
-            return convertView;
-        }
-
-        public void insertItem(String item) {
-            if (streamSet.contains(item)) return;
-
-            streamSet.add(item);
-            notifyDataSetChanged();
-        }
-
-        public void removeItem(String item) {
-            if (streamSet.contains(item)) {
-                streamSet.remove(item);
-                notifyDataSetChanged();
-            }
-        }
-
-        public void clear() {
-            streamSet.clear();
-            notifyDataSetChanged();
-        }
-    }
-
-    static private class ZGLog {
+    static public class ZGLog {
         static private final String TAG = "AudioLiveDemo";
 
         static private WeakReference<AudioApplication> appRef = new WeakReference<AudioApplication>(AudioApplication.sApplication);

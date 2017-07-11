@@ -1,16 +1,15 @@
 <resources>
     <string name="zg_app_name">AudioLive</string>
-    <string name="zg_login_room">登录</string>
-    <string name="zg_logout_room">离开</string>
-    <string name="zg_start_communicate">开始聊天</string>
-    <string name="zg_stop_communicate">停止聊天</string>
+    <string name="zg_login_room">登录房间</string>
+    <string name="zg_logout_room">关闭</string>
+    <string name="zg_start_communicate">开始音频通话</string>
+    <string name="zg_stop_communicate">停止音频通话</string>
     <string name="zg_tip_input_room_name">输入房间ID</string>
     <string name="zg_tip_no_stream">没有流数据</string>
 
-    <string name="zg_tip_not_allow_setting_when_login">通话过程中不允许修改设置</string>
     <string name="zg_tip_no_events">没有数据</string>
 
-    <string name="zg_menu_main_show_events">事件流</string>
+    <string name="zg_menu_main_show_events">日志</string>
     <string name="zg_menu_logs_upload_log">上传日志</string>
     <string name="zg_menu_logs_clear_events">清除</string>
 
@@ -21,6 +20,7 @@
     <string name="zg_btn_text_record_on">录音</string>
     <string name="zg_btn_text_record_off">停止录音</string>
 
+    <string name="zg_checkbox_use_test_env">使用测试环境</string>
     <string name="zg_checkbox_audio_prepare">开启音频前处理</string>
     <string name="zg_checkbox_manual_publish">开启手动推流</string>
 

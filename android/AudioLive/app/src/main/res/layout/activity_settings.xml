@@ -45,6 +45,22 @@
         <TextView
             android:layout_width="100dp"
             android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:text="UserId: "/>
+        <TextView
+            android:id="@+id/tv_user_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp">
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
             android:text="@string/zg_text_app_id"/>
         <EditText
             android:id="@+id/et_app_id"
@@ -69,6 +85,25 @@
             android:gravity="left|center_vertical"
             android:text=""/>
     </LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp">
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="@string/zg_checkbox_use_test_env"/>
+        <CheckBox
+            android:id="@+id/checkbox_use_test_env"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:gravity="right|center_vertical"
+            android:text=""/>
+    </RelativeLayout>
 
     <RelativeLayout
         android:layout_width="match_parent"

@@ -18,54 +18,20 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal" >
-        <Button
-            android:id="@+id/btn_mute"
-            android:layout_width="60dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.0"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp"
-            android:text="@string/zg_btn_text_mute"
-            android:enabled="false" />
-
-        <Button
-            android:id="@+id/btn_aux"
-            android:layout_width="60dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.0"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp"
-            android:text="@string/zg_btn_text_aux"
-            android:enabled="false" />
-
-        <Button
-            android:id="@+id/btn_recorder"
-            android:layout_width="60dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.0"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp"
-            android:text="@string/zg_btn_text_record_on"
-            android:enabled="false" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:gravity="left|center_vertical"
-        android:orientation="horizontal"
+        android:layout_height="match_parent"
+        android:layout_marginTop="100dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
         tools:layout_editor_absoluteY="0dp"
         tools:layout_editor_absoluteX="8dp">
 
         <EditText
             android:id="@+id/room_name"
-            android:layout_width="200dp"
+            android:layout_width="300dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1.0"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:maxLength="1024"
             android:hint="@string/zg_tip_input_room_name" />
 
         <Button
@@ -73,39 +39,11 @@
             style="@style/NormalButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginRight="5dp"
+            android:layout_marginTop="20dp"
             android:text="@string/zg_login_room"
-            android:visibility="gone"
-            tools:layout_editor_absoluteY="0dp" />
+            android:enabled="false"
+            tools:layout_editor_absoluteY="0dp"/>
 
-        <Button
-            android:id="@+id/btn_communicate_action"
-            style="@style/NormalButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="5dp"
-            android:text="@string/zg_start_communicate"
-            tools:layout_editor_absoluteY="0dp" />
     </LinearLayout>
-
-    <ListView
-        android:id="@+id/stream_list"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginTop="30dp"
-        android:layout_marginLeft="10dp"
-        android:layout_marginRight="10dp"
-        tools:layout_editor_absoluteY="8dp"
-        tools:layout_editor_absoluteX="8dp">
-
-    </ListView>
-
-    <TextView
-        android:id="@+id/empty_data_tip"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:text="@string/zg_tip_no_stream" />
-
 
 </LinearLayout>

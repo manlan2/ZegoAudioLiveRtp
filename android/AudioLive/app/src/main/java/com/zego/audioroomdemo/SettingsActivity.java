@@ -1,6 +1,7 @@
 package com.zego.audioroomdemo;
 
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -11,7 +12,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.zego.zegoaudioroom.*;
-import com.zego.zegoaudioroom.BuildConfig;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -23,6 +23,12 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Bind(R.id.tv_version2)
     public TextView tvVersion2;
+
+    @Bind(R.id.tv_user_id)
+    public TextView tvUserId;
+
+    @Bind(R.id.checkbox_use_test_env)
+    public CheckBox cbUseTestEnv;
 
     @Bind(R.id.checkbox_audio_prepare)
     public CheckBox cbTurnOnAudioPrepare;
@@ -36,9 +42,7 @@ public class SettingsActivity extends AppCompatActivity {
     @Bind(R.id.et_app_key)
     public EditText etAppKey;
 
-    static final public String KAudio_Prepare = "audio_prepare";
-    static final public String KManual_Publish = "manual_publish";
-
+    private boolean oldUseTestEnvValue;
     private boolean oldAudioPrepareValue;
     private boolean oldManualPublishValue;
 
@@ -46,16 +50,17 @@ public class SettingsActivity extends AppCompatActivity {
 
         @Override
         public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-//            AudioApplication application = (AudioApplication)getApplication();
             switch (buttonView.getId()) {
                 case R.id.checkbox_audio_prepare:
-//                    application.setRuntimeValue(KAudio_Prepare, isChecked);
-                    PrefUtils.setAudioPrepare(isChecked);
+                    PrefUtils.enableAudioPrepare(isChecked);
                     break;
 
                 case R.id.checkbox_manual_publish:
-//                    application.setRuntimeValue(KManual_Publish, isChecked);
                     PrefUtils.setManualPublish(isChecked);
+                    break;
+
+                case R.id.checkbox_use_test_env:
+                    AudioApplication.sApplication.setUseTestEnv(isChecked);
                     break;
             }
         }
@@ -71,17 +76,33 @@ public class SettingsActivity extends AppCompatActivity {
         tvVersion.setText(ZegoAudioRoom.version());
         tvVersion2.setText(ZegoAudioRoom.version2());
 
-        etAppId.setText("" + com.zego.audioroomdemo.BuildConfig.APP_ID);
+        long appId = -1;
+        String signKey = null;
+        Intent startIntent = getIntent();
+        if (startIntent != null) {
+            appId = startIntent.getLongExtra("appId", -1);
+            signKey = startIntent.getStringExtra("rawKey");
+        }
 
-//        AudioApplication application = (AudioApplication)getApplication();
-//        oldAudioPrepareValue = (boolean)application.getRuntimeValue(KAudio_Prepare, false);
-        oldAudioPrepareValue = PrefUtils.getAudioPrepare();
+        if (appId > 0 && !TextUtils.isEmpty(signKey)) {
+            etAppId.setText(String.valueOf(appId));
+            etAppKey.setText(signKey);
+        } else {
+            etAppId.setText("" + com.zego.audioroomdemo.BuildConfig.APP_ID);
+        }
+
+        tvUserId.setText(PrefUtils.getUserId());
+
+        oldUseTestEnvValue = AudioApplication.sApplication.isUseTestEnv();
+        cbUseTestEnv.setChecked(oldUseTestEnvValue);
+
+        oldAudioPrepareValue = PrefUtils.isEnableAudioPrepare();
         cbTurnOnAudioPrepare.setChecked(oldAudioPrepareValue);
 
-//        oldManualPublishValue = (boolean)application.getRuntimeValue(KManual_Publish, false);
-        oldManualPublishValue = PrefUtils.getManualPublish();
+        oldManualPublishValue = PrefUtils.isManualPublish();
         cbManualPublish.setChecked(oldManualPublishValue);
 
+        cbUseTestEnv.setOnCheckedChangeListener(checkedChangeListener);
         cbTurnOnAudioPrepare.setOnCheckedChangeListener(checkedChangeListener);
         cbManualPublish.setOnCheckedChangeListener(checkedChangeListener);
     }
@@ -100,6 +121,7 @@ public class SettingsActivity extends AppCompatActivity {
             }
         }
 
+        boolean reInitSDK = false;
         Intent resultIntent = null;
         if (appId != com.zego.audioroomdemo.BuildConfig.APP_ID) {
             // appKey长度必须等于32位
@@ -117,11 +139,13 @@ public class SettingsActivity extends AppCompatActivity {
             resultIntent = new Intent();
             resultIntent.putExtra("appId", appId);
             resultIntent.putExtra("signKey", signKey);
+            resultIntent.putExtra("rawKey", appKey);
+            reInitSDK = true;
         }
-//        AudioApplication application = (AudioApplication)getApplication();
-//        boolean newValue = (boolean)application.getRuntimeValue(KAudio_Prepare, false);
-        boolean newValue = PrefUtils.getAudioPrepare();
-        setResult(oldAudioPrepareValue == newValue ? 0 : 1, resultIntent);
+
+        reInitSDK = reInitSDK | (PrefUtils.isEnableAudioPrepare() != oldAudioPrepareValue);
+        reInitSDK = reInitSDK | (AudioApplication.sApplication.isUseTestEnv() != oldUseTestEnvValue);
+        setResult(reInitSDK ? 1 : 0, resultIntent);
         super.onBackPressed();
     }
 }
