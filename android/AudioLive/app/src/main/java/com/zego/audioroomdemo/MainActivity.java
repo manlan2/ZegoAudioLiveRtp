@@ -3,7 +3,6 @@ package com.zego.audioroomdemo;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -15,7 +14,12 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.zego.audioroomdemo.activities.SessionActivity;
+import com.zego.audioroomdemo.activities.SettingsActivity;
+import com.zego.audioroomdemo.utils.PrefUtils;
+import com.zego.audioroomdemo.utils.AppSignKeyUtils;
 import com.zego.zegoaudioroom.ZegoAudioRoom;
+import com.zego.zegoliveroom.entity.ZegoExtPrepSet;
 
 import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
@@ -38,23 +42,10 @@ public class MainActivity extends AppCompatActivity {
     @Bind(R.id.toolbar)
     public android.support.v7.widget.Toolbar toolBar;
 
-    private byte[] signData_rtmp = new byte[] {
-            (byte) 0x91, (byte) 0x93, (byte) 0xcc, (byte) 0x66, (byte) 0x2a, (byte) 0x1c, (byte) 0x0e, (byte) 0xc1,
-            (byte) 0x35, (byte) 0xec, (byte) 0x71, (byte) 0xfb, (byte) 0x07, (byte) 0x19, (byte) 0x4b, (byte) 0x38,
-            (byte) 0x41, (byte) 0xd4, (byte) 0xad, (byte) 0x83, (byte) 0x78, (byte) 0xf2, (byte) 0x59, (byte) 0x90,
-            (byte) 0xe0, (byte) 0xa4, (byte) 0x0c, (byte) 0x7f, (byte) 0xf4, (byte) 0x28, (byte) 0x41, (byte) 0xf7
-    };
 
-    private byte[] signData_udp = new byte[] {
-            (byte)0x1e, (byte)0xc3, (byte)0xf8, (byte)0x5c, (byte)0xb2, (byte)0xf2, (byte)0x13, (byte)0x70,
-            (byte)0x26, (byte)0x4e, (byte)0xb3, (byte)0x71, (byte)0xc8, (byte)0xc6, (byte)0x5c, (byte)0xa3,
-            (byte)0x7f, (byte)0xa3, (byte)0x3b, (byte)0x9d, (byte)0xef, (byte)0xef, (byte)0x2a, (byte)0x85,
-            (byte)0xe0, (byte)0xc8, (byte)0x99, (byte)0xae, (byte)0x82, (byte)0xc0, (byte)0xf6, (byte)0xf8
-    };
 
     private long currentAppId = -1;
     private String currentStrSignKey = null;
-    private byte[] currentSignKey = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,20 +77,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         currentAppId = BuildConfig.APP_ID;
-        currentSignKey = requireSignData();
-    }
-
-    @Override
-    protected void onDestroy() {
-        ZegoAudioRoom zegoAudioRoom = ((AudioApplication)getApplication()).getAudioRoomClient();
-        zegoAudioRoom.unInit();
-
-        super.onDestroy();
-    }
-
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
     }
 
     @Override
@@ -129,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == 1) {
                 ZGLog.d("on SettingsActivity Result, reInit SDK");
                 if (data == null) {
-                    reInitZegoSDK(BuildConfig.APP_ID, requireSignData());
+                    reInitZegoSDK(BuildConfig.APP_ID, AppSignKeyUtils.requestSignKey(BuildConfig.APP_ID));
                 } else {
                     currentStrSignKey = data.getStringExtra("rawKey");
                     reInitZegoSDK(data.getLongExtra("appId", 1), data.getByteArrayExtra("signKey"));
@@ -171,42 +148,37 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private byte[] requireSignData() {
-        if (BuildConfig.APP_ID == 1) {
-            return signData_rtmp;
-        } else if (BuildConfig.APP_ID == 1739272706) {
-            return signData_udp;
-        } else {
-            throw new RuntimeException("not support app Id: " + BuildConfig.APP_ID);
-        }
-    }
-
     private void reInitZegoSDK(final long appKey, final byte[] signKey) {
         currentAppId = appKey;
-        currentSignKey = signKey;
 
         new Thread(new Runnable() {
             @Override
             public void run() {
                 ZegoAudioRoom zegoAudioRoom = ((AudioApplication)getApplication()).getAudioRoomClient();
                 ZegoAudioRoom.setUseTestEnv(false);
-                ZegoAudioRoom.enableAudioPrep(false);
+//                zegoAudioRoom.enableAudioPrep(false);
+                ZegoAudioRoom.enableAudioPrep2(false, null);
                 zegoAudioRoom.unInit();
 
                 String userId = PrefUtils.getUserId();
                 String userName =  "ZG-A-" + userId;
                 ZegoAudioRoom.setUser(userId, userName);
                 ZegoAudioRoom.setUseTestEnv(AudioApplication.sApplication.isUseTestEnv());
-                ZegoAudioRoom.enableAudioPrep(PrefUtils.isEnableAudioPrepare());
+//                ZegoAudioRoom.enableAudioPrep(PrefUtils.isEnableAudioPrepare());
+                ZegoExtPrepSet config = new ZegoExtPrepSet();
+                config.encode = false;
+                config.channel = 0;
+                config.sampleRate = 0;
+                config.samples = 1;
+                ZegoAudioRoom.enableAudioPrep2(PrefUtils.isEnableAudioPrepare(), config);
                 zegoAudioRoom.setManualPublish(PrefUtils.isManualPublish());
+                zegoAudioRoom.initWithAppId(appKey, signKey, MainActivity.this);
             }
         }).start();
     }
 
     private void startSessionActivity() {
         Intent startIntent = new Intent(MainActivity.this, SessionActivity.class);
-        startIntent.putExtra("appId", currentAppId);
-        startIntent.putExtra("signKey", currentSignKey);
         startIntent.putExtra("roomId", ctrlRoomName.getText().toString().trim());
         startActivity(startIntent);
     }
